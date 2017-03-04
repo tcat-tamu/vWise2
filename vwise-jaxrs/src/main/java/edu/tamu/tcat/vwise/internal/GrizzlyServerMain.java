@@ -26,7 +26,7 @@ import org.glassfish.jersey.server.ResourceConfig;
 public class GrizzlyServerMain
 {
    private static final String[] RESOURCE_PKGS = {
-      "edu.tamu.tcat.example.jersey_jaxrs"
+      "edu.tamu.tcat.vwise.jaxrs"
    };
 
    private static final Logger logger = Logger.getLogger(GrizzlyServerMain.class.getName());
@@ -110,7 +110,7 @@ public class GrizzlyServerMain
       try
       {
          ResourceConfig rc = new ResourceConfig().packages(RESOURCE_PKGS);
-         server = GrizzlyHttpServerFactory.createHttpServer(baseUri, rc);
+         server = GrizzlyHttpServerFactory.createHttpServer(getBaseUri(), rc);
       }
       catch (Exception e)
       {
