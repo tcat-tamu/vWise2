@@ -1,0 +1,189 @@
+---
+swagger: '2.0'
+
+################################################################################
+#                              API Information                                 #
+################################################################################
+info:
+  version: "v1"
+  title: vWise
+  description: |
+    Visual Workspace for Information Seeking and Exploration
+
+################################################################################
+#                  Host, Base Path, Schemes and Content Types                  #
+################################################################################
+# Local test and debug
+host: localhost:8080
+basePath: /api
+
+# This is the proposed deployment location.  
+# host: vwise.citd.tamu.edu
+# basePath: /api
+schemes:
+  - https
+  # for testing and debug only
+  - http
+produces:
+  - application/json
+consumes:
+  - application/json
+  
+################################################################################
+#                                   Parameters                                 #
+################################################################################
+parameters:
+  wsId:
+    name: wsId
+    in: path
+    description: The unique identifier of a workspace.
+    type: string
+    required: true
+    
+################################################################################
+#                                           Paths                              #
+################################################################################
+paths:
+  /workspaces:
+    get:
+      # TODO add query capabilities
+      summary: List all Workspaces
+      description: Lists all workspaces
+
+      responses:
+        200:
+          description: A list of all workspaces.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/WorkspaceMeta'
+    post:
+      summary: Create a Workspace
+      description: Attempts to create a new workspace.
+      consumes:
+        - application/json
+      parameters:
+        - name: body
+          in: body
+          description: |
+            The workspace to be created. The workspace id and version should
+            not be supplied. If supplied, they will return null.
+          required: true
+          schema:
+            $ref: '#/definitions/WorkspaceMeta'
+      responses:
+        200:
+          description: The newly created workspace.
+          schema:
+            $ref: '#/definitions/WorkspaceMeta'
+  /workspaces/{wsId}:
+    parameters:
+      - $ref: "#/parameters/wsId"
+    get:
+      summary: A Workspace
+      description: |
+        Provides basic descriptive information about a workspace such as the
+        name and description of the workspace.
+      responses:
+        200:
+          description: Descriptive information about a workspace.
+          schema:
+            $ref: '#/definitions/WorkspaceMeta'
+        404:
+          description: The requested workspace does not exist.
+          schema:
+            type: string
+        default:
+          description: Unexpected error
+          schema:
+            type: string
+    put:
+      summary: Update Workspace
+      description: |
+        Updates the basic information about a workspace.
+      responses:
+        200:
+          description: The updated workspace.
+          schema:
+            type: array
+            items:
+              $ref: '#/definitions/WorkspaceMeta'
+        404:
+          description: The requested workspace does not exist.
+          schema:
+            type: string
+    delete:
+      summary: Delete Workspace
+      description: Deletes this workspace
+      responses:
+        204:
+          description: The workspace was deleted or does not exist
+          
+################################################################################
+#                                 Definitions                                  #
+################################################################################
+definitions:
+  WorkspaceMeta:
+    type: object
+    description: |
+      Provides basic descriptive information (workspace metadata) about a workspace.
+
+      A workspace is a container that that displays panels and allow users to manipulate those
+      panels. The interfaces that allow users to interact with a workspace are implemented by
+      external applications that determine the specifics of how information should be displayed,
+      manage the application-supported custom panel extensions and integrate with content
+      providers (e.g., an application that allows users to manage their twitter feed might
+      provide panels to create searches, display their timeline, display individual tweets, etc).
+
+      Workspaces are created and owned by users and may be organized into groups and shared
+      between users. To support user-friendly URLs, panels a workspace is associated with a
+      scope (to organize a collection of workspaces) and key (a unique, user-defined identifier
+      for a workspace within a scope). For example, a user might have a personal scope,
+      `@audenaert` with workspaces for `vacation_krakow`, `twitter_dh`, and `twitter_aggies` that he
+      uses to plan a vacation to Krakow and to curate Twitter feeds for Digital Humanities
+      and Texas A&M related content respectfully.
+
+    properties:
+      id:
+        type: string
+        title: Workspace Id
+        description: A unique, persistent identifier for this workspace.
+      version:
+        type: string
+        title: Workspace Version
+        description: |
+          Version identifier that tracks different states of the workspace (including both
+          its metadata and content). This version number is a unique, opaque token that
+          that will be updated each time the workspace changes. See the (since deprecated)
+          [Twitter Snowflake](https://github.com/twitter/snowflake/tree/snowflake-2010)
+          for a discussion of design decisions related to generating identifiers in a
+          high-volume environment. While this level of complexity is not currently needed
+          or implemented, an opaque, string-based identifier is used in lieu
+          of a numeric, UUID or other explicit scheme in order to allow space to use
+          a more complex version identification scheme in the future as needed.
+      scope:
+        type: string
+        title: Scope
+        description: |
+          Defines a grouping of workspaces in order to facilitate personal and group-based
+          organization of workspaces and to provide user-friendly workspace URIs. Scope names
+          are constrained by their types. Personal scopes begin with `@` (e.g. `@audenaert`)
+          and group-based scopes begin with a `~` (e.g., `~tamu.cpsc410.spring2017` for a
+          group related to the Spring 2017 CPSC 410 class at Texas A&M University).
+
+          Workspaces within a scope are identified by a unique key.
+      key:
+        type: string
+        title: Id
+        description: |
+          User-defined identifier for a workspace. This key must be unique within the
+          associated scope. This is intended to be an easily readable identifier that
+          is either user-generated or a sluggified form of the workspace name.
+      name:
+        type: string
+        title: Name
+        description: The name of this workspace for display and discovery.
+      description:
+        type: string
+        title: Description
+        description: A brief description of this workspace.
