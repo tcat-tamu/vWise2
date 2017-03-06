@@ -1,18 +1,26 @@
 package edu.tamu.tcat.vwise;
 
+import static java.text.MessageFormat.format;
 import static junit.framework.Assert.assertFalse;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertTrue;
 
+import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.Arrays;
 import java.util.HashSet;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Properties;
+import java.util.logging.Logger;
 
 import org.junit.Test;
 
 import edu.tamu.tcat.vwise.model.WorkspaceMeta;
-import jersey.repackaged.com.google.common.base.Objects;
 
 /**
  *  Performs core functionality testing of workspaces. Intended to be sub-classed
@@ -25,7 +33,39 @@ import jersey.repackaged.com.google.common.base.Objects;
  */
 public abstract class WorkspaceTest
 {
+   private final static Logger logger = Logger.getLogger(WorkspaceTest.class.getName());
+
+   private static final String CONFIG_FILE_PROP = "config.file";
+
    protected VwiseApplicationContext ctx;
+
+   public static Properties getConfig()
+   {
+      String noConfigFileSupplied = "No configuration file supplied. The path to the configuration "
+            + "properies file should be specified using the '{0}' system property.";
+      String badConfigFile = "The supplied config file [{0}] could not be found.";
+
+      String cfgLocation = Objects.requireNonNull(System.getProperty(CONFIG_FILE_PROP),
+            () -> format(noConfigFileSupplied, CONFIG_FILE_PROP));
+      Path cfgPath = Paths.get(cfgLocation);
+      if (!Files.isRegularFile(cfgPath) || !Files.isReadable(cfgPath))
+         throw new IllegalStateException(format(badConfigFile, cfgPath.toAbsolutePath().toString()));
+
+      Properties cfg = new Properties();
+      try (InputStream is = Files.newInputStream(cfgPath, StandardOpenOption.READ))
+      {
+         logger.info("Loading configuration properties from " + cfgPath.toAbsolutePath());
+
+         cfg.load(is);
+
+         logger.finer("Loadeding configuration properties\n" + cfg);
+         return cfg;
+      }
+      catch (Exception ex)
+      {
+         throw new IllegalStateException(format("Failed to load config file {0}", cfgPath), ex);
+      }
+   }
 
    @Test
    public void testCreateWorkspace() throws Exception
@@ -88,6 +128,7 @@ public abstract class WorkspaceTest
       try (WorkspaceRepository repo = ctx.getRepository())
       {
          WorkspaceMeta created = repo.create(ws);
+         String wsId = created.id;
          created.name = updatedName;
          created.description = updatedDescription;
 
@@ -95,20 +136,20 @@ public abstract class WorkspaceTest
          WorkspaceMeta updated = repo.update(created);
          assertEquals("The updated id should be match the original id", created.id, updated.id);
          assertFalse("The updated version should not match the original version",
-               Objects.equal(created.version, updated.version));
+               Objects.equals(created.version, updated.version));
          assertEquals("The updated name should reflect the new value", updatedName, updated.name);
          assertEquals("The updated description should reflect the new value", updatedDescription, updated.description);
 
          // retrieve the updated workspace to make sure the correct version is returned
          // retrieve the created workspace
-         Optional<WorkspaceMeta> optional = repo.get(ws.id);
+         Optional<WorkspaceMeta> optional = repo.get(wsId);
 
          assertTrue("A workspace should be returned", optional.isPresent());
          updated = optional.get();
 
          assertEquals("The updated id should be match the original id", created.id, updated.id);
          assertFalse("The updated version should not match the original version",
-               Objects.equal(created.version, updated.version));
+               Objects.equals(created.version, updated.version));
          assertEquals("The updated name should reflect the new value", updatedName, updated.name);
          assertEquals("The updated description should reflect the new value", updatedDescription, updated.description);
       }
@@ -151,7 +192,6 @@ public abstract class WorkspaceTest
                Arrays.asList(created.version, updated.version, updated2.version, updated3.version));
          assertEquals("The versions should all be different", 4, versions.size());
 
-
          // test the progression of names
          assertEquals("The first updated name should reflect the first updated name", updatedName, updated.name);
          assertEquals("The second updated name should reflect the second update name", updatedName2, updated2.name);
@@ -165,9 +205,37 @@ public abstract class WorkspaceTest
    }
 
    @Test
-   public void testGetVersionedWorkspace()
+   public void testGetVersionedWorkspace() throws Exception
    {
-      assertFalse("Test not implemented", true);
+      WorkspaceMeta ws = new WorkspaceMeta();
+      ws.name = "Test Workspace";
+      ws.description = "This is a test workspace.";
+
+      String updatedName = "Updated Workspace";
+      String updatedDescription = "This is an updated workspace description.";
+
+      // create the workspace
+      try (WorkspaceRepository repo = ctx.getRepository())
+      {
+         WorkspaceMeta created = repo.create(ws);
+         String wsId = created.id;
+         String version = created.version;
+
+         created.name = updatedName;
+         created.description = updatedDescription;
+         repo.update(created);
+
+         // should be able to retrieve using id and version
+         Optional<WorkspaceMeta> opt = repo.get(wsId, version);
+         assertTrue("Should be able to retrieve the removed workspace using its id and version", opt.isPresent());
+
+         WorkspaceMeta retrieved = opt.get();
+
+         assertEquals("The id should be match the requested id", wsId, retrieved.id);
+         assertEquals("The version should match the initial version", version, retrieved.version);
+         assertEquals("The retrieved name match the original name", ws.name, retrieved.name);
+         assertEquals("The retrieved description match the original description", ws.description, retrieved.description);
+      }
    }
 
    @Test
@@ -217,7 +285,7 @@ public abstract class WorkspaceTest
          String wsId = created.id;
          String version = created.version;
 
-         repo.remove(wsId);
+         repo.purge(wsId);
 
          // should not be able to retrieve using id only
          Optional<WorkspaceMeta> opt = repo.get(wsId);

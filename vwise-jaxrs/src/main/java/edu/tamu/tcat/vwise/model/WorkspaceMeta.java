@@ -20,6 +20,25 @@ package edu.tamu.tcat.vwise.model;
  */
 public class WorkspaceMeta
 {
+   /**
+    * Creates a duplicate of the supplied workspace metadata instance.
+    *
+    * @param orig the workspace to copy.
+    * @return A copy of the supplied workspace metadata.
+    */
+   public static WorkspaceMeta copy(WorkspaceMeta orig)
+   {
+     WorkspaceMeta ws = new WorkspaceMeta();
+     ws.id = orig.id;
+     ws.version = orig.version;
+     ws.scope = orig.scope;
+     ws.key = orig.key;
+     ws.name = orig.name;
+     ws.description = orig.description;
+
+     return ws;
+   }
+
    /** A unique, persistent identifier for this workspace. */
    public String id;
 

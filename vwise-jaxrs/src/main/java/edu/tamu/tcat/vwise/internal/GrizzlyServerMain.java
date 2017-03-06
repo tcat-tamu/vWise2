@@ -22,6 +22,9 @@ import org.glassfish.grizzly.http.server.HttpServer;
 import org.glassfish.jersey.grizzly2.httpserver.GrizzlyHttpServerFactory;
 import org.glassfish.jersey.server.ResourceConfig;
 
+import edu.tamu.tcat.vwise.VwiseApplicationContext;
+import edu.tamu.tcat.vwise.impl.memory.InMemoryApplicationContext;
+
 /**
  * Responsible for initializing and starting the Grizzly server for testing and
  * demonstration purposes.
@@ -102,9 +105,7 @@ public class GrizzlyServerMain
       mgr = new GrizzlyServerMain(cfg);
       mgr.start();
 
-      // TODO fix message
-      String startup_msg = "Jersey app started with WADL available at {0}/application.wadl"
-            + "\nHit enter to stop it...";
+      String startup_msg = "Jersey app started with WADL available at {0}/application.wadl";
       logger.info(format(startup_msg, mgr.getBaseUri()));
    }
 
@@ -134,7 +135,6 @@ public class GrizzlyServerMain
       {
          throw new IllegalStateException(format("Failed to load config file {0}", cfgPath), ex);
       }
-
    }
 
    private final Properties cfg;
@@ -144,6 +144,8 @@ public class GrizzlyServerMain
    private final String appRoot;
 
    private HttpServer server;
+
+   private final InMemoryApplicationContext ctx;
 
    public GrizzlyServerMain(Properties cfg)
    {
@@ -155,13 +157,25 @@ public class GrizzlyServerMain
       try
       {
          // create and start a new instance of grizzly http server exposing the Jersey application at BASE_URI
-         baseUri = new URI(host).resolve(appRoot);
+         this.baseUri = new URI(host).resolve(appRoot);
+         this.ctx = new InMemoryApplicationContext(cfg);
+
       }
       catch (URISyntaxException e)
       {
          String msg = "Configuration error: The supplied host name [{0}] is not a valid URI.";
          throw new IllegalStateException(format(msg, host));
       }
+   }
+
+   public Properties getConfiguration()
+   {
+      return cfg;
+   }
+
+   public VwiseApplicationContext getVwiseContext()
+   {
+      return ctx;
    }
 
    public URI getBaseUri()
@@ -203,14 +217,16 @@ public class GrizzlyServerMain
    {
       try
       {
-         GrizzlyServerMain mgr = getInstance();
+         getInstance();
+         System.out.println("Hit enter to stop it...");
          System.in.read();
-
-         mgr.shutdown();
       }
       catch (Exception ex)
       {
          logger.log(Level.SEVERE, "Fatal error launching Grizzly Server", ex);
+      }
+      finally {
+         GrizzlyServerMain.shutdown();
       }
    }
 }

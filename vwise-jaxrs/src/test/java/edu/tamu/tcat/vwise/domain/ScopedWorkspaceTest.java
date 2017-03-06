@@ -3,6 +3,7 @@ package edu.tamu.tcat.vwise.domain;
 import org.junit.After;
 import org.junit.Before;
 
+import edu.tamu.tcat.vwise.WorkspaceTest;
 import edu.tamu.tcat.vwise.impl.memory.InMemoryApplicationContext;
 
 /**
@@ -19,7 +20,7 @@ public class ScopedWorkspaceTest
    @Before
    public void setUp() throws Exception
    {
-      ctx = new InMemoryApplicationContext();
+      ctx = new InMemoryApplicationContext(WorkspaceTest.getConfig());
    }
 
    @After

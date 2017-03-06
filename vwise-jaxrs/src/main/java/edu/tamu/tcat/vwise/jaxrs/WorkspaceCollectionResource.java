@@ -20,8 +20,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import edu.tamu.tcat.vwise.UnauthorizedActionException;
 import edu.tamu.tcat.vwise.VwiseApplicationContext;
 import edu.tamu.tcat.vwise.WorkspaceRepository;
-import edu.tamu.tcat.vwise.impl.memory.InMemoryApplicationContext;
 import edu.tamu.tcat.vwise.internal.ApiUtils;
+import edu.tamu.tcat.vwise.internal.GrizzlyServerMain;
 import edu.tamu.tcat.vwise.model.WorkspaceMeta;
 
 @Path("workspaces")
@@ -31,8 +31,8 @@ public class WorkspaceCollectionResource
 
    public WorkspaceCollectionResource()
    {
-      // in production, we would use some form of dependency injection to create this
-      this.ctx = new InMemoryApplicationContext();
+      // HACK this should be set up via dependency injection
+      this.ctx = GrizzlyServerMain.getInstance().getVwiseContext();
    }
 
    /**

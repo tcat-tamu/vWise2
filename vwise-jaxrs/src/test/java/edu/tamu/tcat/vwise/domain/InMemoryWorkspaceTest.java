@@ -11,7 +11,7 @@ public class InMemoryWorkspaceTest extends WorkspaceTest
    @Before
    public void setUp() throws Exception
    {
-      ctx = new InMemoryApplicationContext();
+      ctx = new InMemoryApplicationContext(getConfig());
    }
 
    @After
