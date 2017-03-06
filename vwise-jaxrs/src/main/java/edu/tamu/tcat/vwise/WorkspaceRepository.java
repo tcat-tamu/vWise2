@@ -8,7 +8,7 @@ import edu.tamu.tcat.vwise.model.WorkspaceMeta;
 /**
  *  Maintains a collection of workspaces.
  */
-public interface WorkspaceRepository
+public interface WorkspaceRepository extends AutoCloseable
 {
 
    // IMPL NOTES
