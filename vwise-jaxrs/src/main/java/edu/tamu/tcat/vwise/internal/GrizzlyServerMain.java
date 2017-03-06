@@ -187,7 +187,9 @@ public class GrizzlyServerMain
    {
       try
       {
-         ResourceConfig rc = new ResourceConfig().packages(RESOURCE_PKGS);
+         ResourceConfig rc = new ResourceConfig()
+               .packages(RESOURCE_PKGS)
+               .register(new ThrowableExceptionMapper());
          server = GrizzlyHttpServerFactory.createHttpServer(getBaseUri(), rc);
       }
       catch (Exception e)
