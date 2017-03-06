@@ -84,6 +84,13 @@ paths:
       description: |
         Provides basic descriptive information about a workspace such as the
         name and description of the workspace.
+      parameters:
+        - name: v
+          in: query
+          description: The version of the workspace to return
+          required: false
+          default: ''
+          type: string
       responses:
         200:
           description: Descriptive information about a workspace.
@@ -115,6 +122,13 @@ paths:
     delete:
       summary: Delete Workspace
       description: Deletes this workspace
+      parameters:
+        - name: purge
+          in: query
+          description: Purge the workspace removing all associated historical data 
+          required: false
+          default: false
+          type: boolean
       responses:
         204:
           description: The workspace was deleted or does not exist
