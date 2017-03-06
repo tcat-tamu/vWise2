@@ -10,8 +10,11 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Lock;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -25,11 +28,13 @@ import org.glassfish.jersey.server.ResourceConfig;
  */
 public class GrizzlyServerMain
 {
+   private static final String CONFIG_FILE_PROP = "config.file";
+
+   private final static Logger logger = Logger.getLogger(GrizzlyServerMain.class.getName());
+
    private static final String[] RESOURCE_PKGS = {
       "edu.tamu.tcat.vwise.jaxrs"
    };
-
-   private static final Logger logger = Logger.getLogger(GrizzlyServerMain.class.getName());
 
    private static final String CFG_HOST = "grizzly.server.host";
    private static final String CFG_APPROOT = "grizzly.server.approot";
@@ -37,40 +42,99 @@ public class GrizzlyServerMain
    private static final String HOST_DEFAULT = "http://localhost:8080";
    private static final String APPROOT_DEFAULT = "/ex";
 
+   private static final Lock mgrLock = new ReentrantLock();
    private static GrizzlyServerMain mgr;
 
    public static synchronized GrizzlyServerMain getInstance()
    {
-      if (mgr == null)
+      try (AutoCloseable lck = initLock())
       {
-         Properties cfg = getConfig();
-         mgr = new GrizzlyServerMain(cfg);
-         mgr.start();
+         if (mgr == null)
+            initServer();
 
-         String startup_msg = "Jersey app started with WADL available at {0}/application.wadl"
-               + "\nHit enter to stop it...";
-         logger.info(format(startup_msg, mgr.getBaseUri()));
+         return mgr;
+      } catch (Exception ex) {
+         String msg = "Lock management failed.";
+         logger.log(Level.SEVERE, msg, ex);
+         throw new IllegalStateException(msg, ex);
       }
+   }
 
-      return mgr;
+   public static void shutdown()
+   {
+      try (AutoCloseable lck = initLock())
+      {
+         if (mgr != null) {
+            mgr.shutdownServer();
+            mgr = null;
+         }
+
+      } catch (Exception ex) {
+         String msg = "Failed to shutdown server.";
+         logger.log(Level.SEVERE, msg, ex);
+         throw new IllegalStateException(msg, ex);
+      }
+   }
+
+   /**
+    * Attempts to obtain a lock on actions to the server instance. Uses a timeout to prevent
+    * deadlock and throws if the lock cannot be obtained.
+    */
+   private static AutoCloseable initLock()
+   {
+      try
+      {
+         String lockErr = "Internal error. Failed to obtain lock for server instance in a timely fashion.";
+         if (!mgrLock.tryLock(10, TimeUnit.SECONDS))
+            throw new IllegalStateException(lockErr);
+
+         return () -> mgrLock.unlock();
+      }
+      catch (Exception ex)
+      {
+         throw new IllegalStateException("Internal error. Failed to obtain lock for server instance.", ex);
+      }
+   }
+
+   private static void initServer()
+   {
+      Properties cfg = getConfig();
+      mgr = new GrizzlyServerMain(cfg);
+      mgr.start();
+
+      // TODO fix message
+      String startup_msg = "Jersey app started with WADL available at {0}/application.wadl"
+            + "\nHit enter to stop it...";
+      logger.info(format(startup_msg, mgr.getBaseUri()));
    }
 
    private static Properties getConfig()
    {
-      String cfgLocation = System.getProperty("config.file");
+      String noConfigFileSupplied = "No configuration file supplied. The path to the configuration "
+            + "properies file should be specified using the '{0}' system property.";
+      String badConfigFile = "The supplied config file [{0}] could not be found.";
+
+      String cfgLocation = Objects.requireNonNull(System.getProperty(CONFIG_FILE_PROP),
+            () -> format(noConfigFileSupplied, CONFIG_FILE_PROP));
       Path cfgPath = Paths.get(cfgLocation);
+      if (!Files.isRegularFile(cfgPath) || !Files.isReadable(cfgPath))
+         throw new IllegalStateException(format(badConfigFile, cfgPath.toAbsolutePath().toString()));
 
       Properties cfg = new Properties();
       try (InputStream is = Files.newInputStream(cfgPath, StandardOpenOption.READ))
       {
+         logger.info("Loading configuration properties from " + cfgPath.toAbsolutePath());
+
          cfg.load(is);
+
+         logger.finer("Loadeding configuration properties\n" + cfg);
+         return cfg;
       }
       catch (Exception ex)
       {
          throw new IllegalStateException(format("Failed to load config file {0}", cfgPath), ex);
       }
 
-      return cfg;
    }
 
    private final Properties cfg;
@@ -118,7 +182,7 @@ public class GrizzlyServerMain
       }
    }
 
-   public void shutdown()
+   private void shutdownServer()
    {
       try
       {
