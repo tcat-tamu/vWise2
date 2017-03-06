@@ -138,7 +138,13 @@ public class RestClientWsRepoImpl implements WorkspaceRepository
    @Override
    public void purge(String id)
    {
-      throw new UnsupportedOperationException("Workspaces cannot currently be purged via the REST API.");
+      Response resp = target.path("workspaces").path(id)
+            .queryParam("purge", true)
+            .request(MediaType.APPLICATION_JSON)
+            .delete();
+
+      if (resp.getStatus() != 204)
+         throw new IllegalStateException();  // TODO  throw the correct exception or otherwise handle response
    }
 
    @Override

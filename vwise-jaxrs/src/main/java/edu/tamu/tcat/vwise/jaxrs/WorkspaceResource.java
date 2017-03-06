@@ -3,12 +3,15 @@ package edu.tamu.tcat.vwise.jaxrs;
 import static edu.tamu.tcat.vwise.internal.ApiUtils.raise;
 import static java.text.MessageFormat.format;
 
+import java.util.Optional;
 import java.util.logging.Level;
 
 import javax.ws.rs.DELETE;
+import javax.ws.rs.DefaultValue;
 import javax.ws.rs.GET;
 import javax.ws.rs.PUT;
 import javax.ws.rs.Produces;
+import javax.ws.rs.QueryParam;
 import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.MediaType;
 import javax.ws.rs.core.Response;
@@ -32,15 +35,14 @@ public class WorkspaceResource
 
    @GET
    @Produces(MediaType.APPLICATION_JSON)
-   public WorkspaceMeta getWorkspace()
+   public WorkspaceMeta getWorkspace(@QueryParam("v") @DefaultValue("") String version)
    {
+      Optional<WorkspaceMeta> result;
       try
       {
-         return repo.get(wsId)
-                    .orElseThrow(() -> raise(
-                          Status.NOT_FOUND,
-                          format("No workspace available for [id: {0}]", wsId),
-                          Level.FINE, null));
+         result = version == null || version.trim().isEmpty()
+               ? repo.get(wsId)
+               : repo.get(wsId, version);
       }
       catch (UnauthorizedActionException uae)
       {
@@ -50,6 +52,10 @@ public class WorkspaceResource
       {
          throw raise(Status.INTERNAL_SERVER_ERROR, format("Unexpected error attempting to access workspace [id: {0}]", wsId), Level.SEVERE, ex);
       }
+
+      String notFoundMsg = "No workspace available for [id: {0}]";
+      return result.orElseThrow(
+            () -> raise(Status.NOT_FOUND, format(notFoundMsg, wsId), Level.FINE, null));
    }
 
    @PUT
@@ -72,11 +78,14 @@ public class WorkspaceResource
 
    @DELETE
    @Produces(MediaType.APPLICATION_JSON)
-   public Response remove()
+   public Response remove(@QueryParam("purge") @DefaultValue("false") boolean purge)
    {
       try
       {
-         repo.remove(wsId);
+         if (purge)
+            repo.purge(wsId);
+         else
+            repo.remove(wsId);
          return Response.noContent().build();
       }
       catch (UnauthorizedActionException uae)
