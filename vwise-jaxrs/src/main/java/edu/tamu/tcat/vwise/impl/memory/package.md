@@ -1,0 +1,1 @@
+A simple, in memory implementation of the vWise domain model.
